@@ -113,10 +113,10 @@ def create_EC_dict(AOP_num, AOP_EC_table):
     EC_dict = {}
     for index, row in AOP_EC_filtered.iterrows():
         row_dict = dict(row)
-        if row["KE"] not in AOP_EC_filtered.keys():
-            EC_dict[row["KE"] ] = [row_dict]
+        if row["KE"] not in EC_dict.keys():
+            EC_dict[row["KE"]] = [row_dict]
         else:
-            EC_dict[row["KE"] ].append(row_dict)
+            EC_dict[row["KE"]].append(row_dict)
     return EC_dict, AOP_EC_filtered
 
 
@@ -156,13 +156,15 @@ def create_ttl_dicts(AOP_EC_filtered):
         row = row.rename(lambda x: re.sub("[\s\/]", "_", x.lower()))
 
         # if object_id is not already in classes.keys() add object_id
-        if row.object_id not in classes.keys() and not pd.isna(row.object_id):
+        # if row.object_id not in classes.keys() and not pd.isna(row.object_id):
+        if not pd.isna(row.object_id):
             class_statement, instance_statement = process_term(row.object_id, row.object_term)
             classes[row.object_id] = class_statement
             instances[row.object_id] = instance_statement
 
         # if process_phenotype_id is not already in instances.keys() add process_phenotype_id
-        if row.process_phenotype_id not in instances.keys() and not pd.isna(row.process_phenotype_id):
+        # if row.process_phenotype_id not in instances.keys() and not pd.isna(row.process_phenotype_id):
+        if not pd.isna(row.process_phenotype_id):
             class_statement, instance_statement = process_term(row.process_phenotype_id, row.process_phenotype_term)
             classes[row.process_phenotype_id] = class_statement
             instances[row.process_phenotype_id] = instance_statement
@@ -281,6 +283,7 @@ AOP_EC_table, AOP_KE_table, AOP_KER_table = import_tables()
 
 AOP_nums = list(set(AOP_EC_table["AOP"]))
 # AOP_num = 23
+AOP_nums = [23]
 c_completed = 0
 c_error = 0
 for AOP_num in AOP_nums:
