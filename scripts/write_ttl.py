@@ -92,12 +92,10 @@ def get_relationship_statement(action1, term1, source1, ECtype1, action2, term2,
         if pd.isna(rel_id_str):
             return (f"\t<http://purl.obolibrary.org/obo/RO_0000000> :{term2} ")
         rel_id_list = rel_id_str.split("|")
-        print(rel_id_list)
 
         relationship_statement = f"\t<http://purl.obolibrary.org/obo/{rel_id_list[0]}> :{term2} "
         if len(rel_id_list) > 1:
             for rel_id in rel_id_list[1:]:
-                print("seg")
                 relationship_statement_seg = f"\t<http://purl.obolibrary.org/obo/{rel_id}> :{term2} "
                 relationship_statement = relationship_statement + ";\n" + relationship_statement_seg
         # relationship_statement = f"\t<http://purl.obolibrary.org/obo/{rel_id}> :{term2} "
@@ -128,9 +126,6 @@ header = '''@prefix : <http://www.semanticweb.org/mmandal/ontologies/2022/4/unti
 
 
 # Import AOP EC table data
-# AOP_EC_table = pd.read_csv("../../aop_wiki_tables/aop_ke_ec.csv")
-# AOP_KE_table = pd.read_csv("../../aop_wiki_tables/aop_ke_mie_ao.tsv", sep="\t")
-# AOP_KER_table = pd.read_csv("../../aop_wiki_tables/aop_ke_ker.tsv", sep="\t")
 AOP_EC_table = pd.read_csv("aop_wiki_tables/aop_ke_ec.csv")
 AOP_KE_table = pd.read_csv("aop_wiki_tables/aop_ke_mie_ao.tsv", sep="\t")
 AOP_KER_table = pd.read_csv("aop_wiki_tables/aop_ke_ker.tsv", sep="\t")
@@ -177,7 +172,6 @@ KE_pairs = []
 KE_order_dict = {}
 KE_order = []
 for index, row in AOP_KER.iterrows():
-    print(index)
     if row.adjacent != "adjacent":
         continue
     if index == 0:
@@ -281,21 +275,17 @@ with open(outfile, "a") as f:
     f.write("\n\n#################################################################")
     f.write("\n#   Individuals")
     f.write("\n#################################################################\n\n")
-print(KE_order)
 with open(outfile, "a") as f:
     for KE_id in KE_order:
         for KE in EC_dict[KE_id]:
 
             if KE["Object ID"] is not np.nan: # if there is an object, write an instance of that object
                 f.write(instances[KE['Object ID']])
-            # else:
-            #     f.write(" .\n")
+
             if KE["Object ID"] is not np.nan and KE["Process/Phenotype ID"] is not np.nan: # if there are both and object and process, write the relationshp
                 f.write(" ;\n" + relationships[(KE['Object ID'],KE["Process/Phenotype ID"])])
                 f.write(" .\n\n")
-            # f.write(" .\n\n")
-            # if KE["Process/Phenotype ID"] is not np.nan: # if there is a process, write an instance of that process
-            #     f.write(" ;\n" + instances[KE['Process/Phenotype ID']])
+
             if KE["Process/Phenotype ID"] is not np.nan: # if there is a process, write an instance of that process
                 f.write(instances[KE['Process/Phenotype ID']])
 
@@ -310,6 +300,5 @@ with open(outfile, "a") as f:
                         f.write(" ;\n" + relationships[KE["Object ID"], next_KE["Process/Phenotype ID"]])
                     elif KE["Process/Phenotype ID"] is np.nan and next_KE["Process/Phenotype ID"] is np.nan:
                         f.write(" ;\n" + relationships[KE["Object ID"], next_KE["Object ID"]])
-            # else:
-            #     f.write(" .\n")
+
             f.write(" .\n\n")
