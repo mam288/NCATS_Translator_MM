@@ -8,7 +8,6 @@ phenotype_ontologies = ["MP","HP", "VT"]
 process_ontologies = ["GO"]
 
 def get_relationship(action1, term1, source1, ECtype1, action2, term2, source2, ECtype2):
-    print(term1, term2)
     if pd.isna(term1) or pd.isna(term2):
         return
     if ECtype1 == "Object":
