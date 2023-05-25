@@ -9,8 +9,9 @@ phenotype_ontologies = ["MP","HP", "VT"]
 process_ontologies = ["GO"]
 
 def get_relationship(action1, term1, source1, ECtype1, action2, term2, source2, ECtype2):
+
     if pd.isna(term1) or pd.isna(term2):
-        return
+        return ""
     if ECtype1 == "Object":
         if ECtype2 == "Object":
             return "RO_0002566|RO_0002559" #Causally_incluences:Causally_influenced_by
@@ -22,11 +23,12 @@ def get_relationship(action1, term1, source1, ECtype1, action2, term2, source2, 
                 if term1 in term2:
                     return "RO_0002327" #:Enables
                 else:
-
                     return "RO_0002331|RO_0002327|RO_0002353|RO_0002428" #RO_0002331:Involved_in|RO_0002327:Enables|RO_0002353:Output_of|RO_0002428:Involved_in_regulation_of
 
         elif source2 in phenotype_ontologies or "osis" in term2:
             return "RO_0002610|RO_0000053" #RO_0002610:Correlated_with|RO_0000053:Has_characteristic
+        else:
+            return ""
     elif ECtype1 == "Process/Phenotype":
         if source1 in process_ontologies or "osis" in term2:
             if ECtype2 == "Object":
@@ -49,22 +51,30 @@ def get_relationship(action1, term1, source1, ECtype1, action2, term2, source2, 
                 return "RO_0004024|RO_0004021" #RO_0004024:Disease_causes_disruption_of|RO_0004021:Disease_has_basis_in_disruption_of
             else:
                 return "RO_0003303|RO_0002610" #RO_0003303:Causes_condition|RO_0002610:Correlated_with
-
+        else:
+            return ""
 
 def process_term(input_id, name):
     """
     Takes a term and id and returns ttl class and instance statements
     """
     if ":" in input_id:
-        input_id_str = f"{input_id[:2]}_{input_id[3:]}"
+        str_1 = input_id.split(":")[0]
+        str_2 = input_id.split(":")[1]
+        input_id_str = f"{str_1}_{str_2}"
+        print(60, input_id_str)
     else:
         input_id_str = input_id
     name = re.sub(" ", "_", name)
     class_statement = f'''\n###  http://purl.obolibrary.org/obo/{input_id_str}\n\t<http://purl.obolibrary.org/obo/{input_id_str}> rdf:type owl:Class .\n\n'''
-    instance_statement = f'''###  http://www.co-ode.org/ontologies/ont.owl#{name}\n<http://www.co-ode.org/ontologies/ont.owl#{name}> rdf:type owl:NamedIndividual ,\n\t<http://purl.obolibrary.org/obo/{input_id_str}>'''
+    individuals_statement = f'''###  http://www.co-ode.org/ontologies/ont.owl#{name}\n<http://www.co-ode.org/ontologies/ont.owl#{name}> rdf:type owl:NamedIndividual ,\n\t<http://purl.obolibrary.org/obo/{input_id_str}>'''
+    return (class_statement, individuals_statement)
 
-    return (class_statement, instance_statement)
-
+def get_object_statement(input_id_str, object_statements):
+    for i in input_id_str:
+        if i != "":
+            object_statements[i] = f'''<http://purl.obolibrary.org/obo/{i}> rdf:type owl:ObjectProperty .\n'''
+    return object_statements
 
 def get_relationship_statement(action1, term1, source1, ECtype1, action2, term2, source2, ECtype2):
     '''
@@ -76,7 +86,7 @@ def get_relationship_statement(action1, term1, source1, ECtype1, action2, term2,
         term2 = re.sub("\s", "_", term2)
         rel_id_str = get_relationship(action1, term1, source1, ECtype1, action2, term2, source2, ECtype2)
         if pd.isna(rel_id_str):
-            return (f"\t<http://purl.obolibrary.org/obo/RO_0000000> :{term2} ")
+            return (f"\t<http://purl.obolibrary.org/obo/RO_0002410> :{term2} ")
         rel_id_list = rel_id_str.split("|")
 
         relationship_statement = f"\t<http://purl.obolibrary.org/obo/{rel_id_list[0]}> :{term2} "
@@ -84,9 +94,9 @@ def get_relationship_statement(action1, term1, source1, ECtype1, action2, term2,
             for rel_id in rel_id_list[1:]:
                 relationship_statement_seg = f"\t<http://purl.obolibrary.org/obo/{rel_id}> :{term2} "
                 relationship_statement = relationship_statement + ";\n" + relationship_statement_seg
-        return (relationship_statement)
+        return (relationship_statement,rel_id_list)
     else:
-        return ("")
+        return ("", [])
 
 def import_tables():
     # Import AOP EC table data
@@ -96,6 +106,9 @@ def import_tables():
 
     AOP_EC_table["KE"] = [int(re.sub("Event\:", "", x)) for x in AOP_EC_table["Key Event"]]
     AOP_EC_table['AOP'] = [int(re.sub("Aop\:", "", x)) for x in AOP_EC_table["AOP"]]
+
+    # AOP_EC_table["Object ID"] = [re.sub("CH\_BI", "CHEBI", x) if x != np.nan else x for x in AOP_EC_table["Object ID"]]
+    # AOP_EC_table['Process/Phenotype ID'] = [re.sub("CH\_BI", "CHEBI", x) for x in AOP_EC_table["Process/Phenotype ID"]]
 
     AOP_KER_table['AOP'] = [int(re.sub("Aop\:", "", x)) for x in AOP_KER_table["AOP"]]
     AOP_KER_table["Event1"] = [int(re.sub("Event\:", "", x)) for x in AOP_KER_table["Event1"]]
@@ -149,37 +162,35 @@ def create_ttl_dicts(AOP_EC_filtered):
 
     ### Create ttl dicts
     classes = {}
-    instances = {}
+    individuals = {}
     relationships = {}
-    # Cycle through rows and create classes and instances
+    object_statements = {}
+
+    # Cycle through rows and create classes and individuals
     for index, row in AOP_EC_filtered.iterrows():
         row = row.rename(lambda x: re.sub("[\s\/]", "_", x.lower()))
-
         # if object_id is not already in classes.keys() add object_id
         # if row.object_id not in classes.keys() and not pd.isna(row.object_id):
         if not pd.isna(row.object_id):
-            class_statement, instance_statement = process_term(row.object_id, row.object_term)
+            class_statement, individuals_statement = process_term(row.object_id, row.object_term)
             classes[row.object_id] = class_statement
-            instances[row.object_id] = instance_statement
-
-        # if process_phenotype_id is not already in instances.keys() add process_phenotype_id
-        # if row.process_phenotype_id not in instances.keys() and not pd.isna(row.process_phenotype_id):
+            individuals[row.object_id] = individuals_statement
+        # if process_phenotype_id is not already in individuals.keys() add process_phenotype_id
+        # if row.process_phenotype_id not in individuals.keys() and not pd.isna(row.process_phenotype_id):
         if not pd.isna(row.process_phenotype_id):
-            class_statement, instance_statement = process_term(row.process_phenotype_id, row.process_phenotype_term)
+            class_statement, individuals_statement = process_term(row.process_phenotype_id, row.process_phenotype_term)
             classes[row.process_phenotype_id] = class_statement
-            instances[row.process_phenotype_id] = instance_statement
-
-        row_relationship_statement = get_relationship_statement(row.action, row.object_term, row.object_source, "Object", "",
-                                                                row.process_phenotype_term, row.process_phenotype_source,
-                                                                "Process/Phenotype")
+            individuals[row.process_phenotype_id] = individuals_statement
+        row_relationship_statement, rel_id_list = get_relationship_statement(row.action, row.object_term, row.object_source, "Object", "",
+                                                                row.process_phenotype_term, row.process_phenotype_source, "Process/Phenotype")
+        object_statements = get_object_statement(rel_id_list, object_statements)
         relationships[(row.object_id, row.process_phenotype_id)] = row_relationship_statement
-
         if row.ke in KE_order_dict.keys():
             next_KE_num = KE_order_dict[row.ke]
             for next_KE in EC_dict[next_KE_num]:
                 #(action1, term1, source1, ECtype1, action2, term2, source2, ECtype2)
                 if row.process_phenotype_id is not np.nan and next_KE["Process/Phenotype ID"] is not np.nan:
-                    row_relationship_statement = get_relationship_statement(row.action,
+                    row_relationship_statement, rel_id_list = get_relationship_statement(row.action,
                                                                             row.process_phenotype_term,
                                                                             row.process_phenotype_source,
                                                                             "Process/Phenotype",
@@ -188,8 +199,9 @@ def create_ttl_dicts(AOP_EC_filtered):
                                                                             next_KE["Process/Phenotype Source"],
                                                                             "Process/Phenotype")
                     relationships[(row.process_phenotype_id, next_KE["Process/Phenotype ID"])] = row_relationship_statement
+                    object_statements = get_object_statement(rel_id_list, object_statements)
                 elif row.process_phenotype_id is not np.nan and next_KE["Process/Phenotype ID"] is np.nan:
-                    row_relationship_statement = get_relationship_statement(row.action,
+                    row_relationship_statement, rel_id_list  = get_relationship_statement(row.action,
                                                                             row.process_phenotype_term,
                                                                             row.process_phenotype_source,
                                                                             "Process/Phenotype",
@@ -198,8 +210,9 @@ def create_ttl_dicts(AOP_EC_filtered):
                                                                             next_KE["Object Source"],
                                                                             "Object")
                     relationships[(row.process_phenotype_id, next_KE["Object ID"])] = row_relationship_statement
+                    object_statements = get_object_statement(rel_id_list, object_statements)
                 elif row.process_phenotype_id is np.nan and next_KE["Process/Phenotype ID"] is not np.nan:
-                    row_relationship_statement = get_relationship_statement(row.action,
+                    row_relationship_statement, rel_id_list  = get_relationship_statement(row.action,
                                                                             row.object_term,
                                                                             row.object_source,
                                                                             "Object",
@@ -208,8 +221,9 @@ def create_ttl_dicts(AOP_EC_filtered):
                                                                             next_KE["Process/Phenotype Source"],
                                                                             "Process/Phenotype")
                     relationships[(row.object_id, next_KE["Process/Phenotype ID"])] = row_relationship_statement
+                    object_statements = get_object_statement(rel_id_list, object_statements)
                 elif row.process_phenotype_id is np.nan and next_KE["Process/Phenotype ID"] is np.nan:
-                    row_relationship_statement = get_relationship_statement(row.action,
+                    row_relationship_statement, rel_id_list  = get_relationship_statement(row.action,
                                                                             row.object_term,
                                                                             row.object_source,
                                                                             "Object",
@@ -217,10 +231,12 @@ def create_ttl_dicts(AOP_EC_filtered):
                                                                             next_KE["Object Term"],
                                                                             next_KE["Object Source"],
                                                                             "Object")
+                    # print(row.object_id, next_KE["Object ID"])
                     relationships[(row.object_id, next_KE["Object ID"])] = row_relationship_statement
-    return classes, instances, relationships
+                    object_statements = get_object_statement(rel_id_list, object_statements)
+    return classes, individuals, relationships, object_statements
 
-def write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, instances, relationships):
+def write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, individuals, relationships, object_statements):
     header = '''@prefix : <http://www.semanticweb.org/mmandal/ontologies/2022/4/untitled-ontology-76#> .
     @prefix owl: <http://www.w3.org/2002/07/owl#> .
     @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -251,41 +267,54 @@ def write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, instances, rel
         f.write("\n#################################################################\n\n")
     with open(outfile, "a") as f:
         for KE_id in KE_order:
+            # print(KE_id)
             for KE in EC_dict[KE_id]:
-
+                # print(258, EC_dict[KE_id])
                 if KE["Object ID"] is not np.nan:  # if there is an object, write an instance of that object
-                    f.write(instances[KE['Object ID']])
+                    f.write(individuals[KE['Object ID']])
+                    # print(KE['Object ID'], 261, instances[KE['Object ID']])
 
                 if KE["Object ID"] is not np.nan and KE[
                     "Process/Phenotype ID"] is not np.nan:  # if there are both and object and process, write the relationshp
+                    # print(265, " ;\n" + relationships[(KE['Object ID'], KE["Process/Phenotype ID"])])
                     f.write(" ;\n" + relationships[(KE['Object ID'], KE["Process/Phenotype ID"])])
                     f.write(" .\n\n")
 
                 if KE["Process/Phenotype ID"] is not np.nan:  # if there is a process, write an instance of that process
-                    f.write(instances[KE['Process/Phenotype ID']])
+                    f.write(individuals[KE['Process/Phenotype ID']])
+                    # print(271, individuals[KE['Process/Phenotype ID']])
 
                 if KE_id in KE_order_dict.keys():  # if there is a next KE in the order_dict
                     next_KEs = EC_dict[KE_order_dict[KE_id]]
                     for next_KE in next_KEs:  # go through the next KEs
+                        # print(276, KE["Object ID"])
                         if KE["Process/Phenotype ID"] is not np.nan and next_KE["Process/Phenotype ID"] is not np.nan:
+                            # print(" ;\n" + relationships[KE["Process/Phenotype ID"], next_KE["Process/Phenotype ID"]])
                             f.write(" ;\n" + relationships[KE["Process/Phenotype ID"], next_KE["Process/Phenotype ID"]])
                         elif KE["Process/Phenotype ID"] is not np.nan and next_KE["Process/Phenotype ID"] is np.nan:
                             f.write(" ;\n" + relationships[KE["Process/Phenotype ID"], next_KE["Object ID"]])
+                            # print(" ;\n" + relationships[KE["Process/Phenotype ID"], next_KE["Object ID"]])
                         elif KE["Process/Phenotype ID"] is np.nan and next_KE["Process/Phenotype ID"] is not np.nan:
+                            # print(" ;\n" + relationships[KE["Object ID"], next_KE["Process/Phenotype ID"]])
                             f.write(" ;\n" + relationships[KE["Object ID"], next_KE["Process/Phenotype ID"]])
                         elif KE["Process/Phenotype ID"] is np.nan and next_KE["Process/Phenotype ID"] is np.nan:
+                            # print(" ;\n" + relationships[KE["Object ID"], next_KE["Object ID"]])
                             f.write(" ;\n" + relationships[KE["Object ID"], next_KE["Object ID"]])
-
                 f.write(" .\n\n")
-
-
+    with open(outfile, "a") as f:
+        f.write("\n\n#################################################################")
+        f.write("\n#   Object Statements")
+        f.write("\n#################################################################\n\n")
+    for o, s in object_statements.items():
+        with open(outfile, "a") as f:
+            f.write(s)
 AOP_EC_table, AOP_KE_table, AOP_KER_table = import_tables()
 
 AOP_nums = list(set(AOP_EC_table["AOP"]))
 # AOP_num = 23
 AOP_nums = [23]
-c_completed = 0
-c_error = 0
+c_completed = []
+c_error = []
 for AOP_num in AOP_nums:
     print(f"AOP {AOP_num}")
     try:
@@ -293,15 +322,17 @@ for AOP_num in AOP_nums:
         EC_dict, AOP_EC_filtered = create_EC_dict(AOP_num, AOP_EC_table)
         AO_dict = create_AO_dict(AOP_num, AOP_KE_table)
         KE_pairs, KE_order_dict, KE_order = create_ke_dicts(AOP_num, AOP_KER_table)
-        classes, instances, relationships = create_ttl_dicts(AOP_EC_filtered)
+        classes, instances, relationships, object_statements = create_ttl_dicts(AOP_EC_filtered)
 
         # Write ttl file
-        outfile = f"output/02022023/aop{AOP_num}_from_script_020223.ttl"
-        write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, instances, relationships)
-        c_completed += 1
+        outfile = f"output/052223/aop{AOP_num}_from_script_052323.ttl"
+        write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, instances, relationships, object_statements)
+        c_completed.append(AOP_num)
     except Exception as e:
         print(f"Error for AOP {AOP_num} is {e}")
         traceback.print_exc()
-        c_error += 1
+        c_error.append(AOP_num)
 
-print("Results:",c_completed, c_error)
+print("Results:",len(c_completed), len(c_error))
+
+# c_error: [1, 12, 13, 16, 17, 36, 37, 39, 40, 57, 58, 60, 61, 72, 78, 82, 86, 90, 97, 151, 186, 190, 191, 195, 202, 203, 204, 206, 209, 213, 214, 215, 216, 218, 219, 220, 230, 233, 235, 238, 241, 242, 245, 256, 257, 258, 264, 265, 266, 267, 268, 272, 273, 274, 275, 276, 277, 278, 280, 285, 286, 289, 290, 291, 292, 293, 294, 296, 297, 299, 300, 302, 303, 305, 306, 307, 309, 310, 311, 312, 318, 319, 320, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 335, 336, 337, 338, 340, 341, 343, 344, 345, 347, 348, 349, 358, 359, 361, 365, 366, 367, 374, 377, 379, 382, 383, 384, 385, 386, 387, 388, 389, 392, 394, 396, 398, 399, 406, 409, 410, 411, 412, 413, 422, 424, 425, 428, 429, 430]
