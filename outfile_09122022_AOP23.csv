@@ -1,0 +1,42 @@
+action,source_1,id_1,term_1,source_2,id_2,term_2,ke(s), adverse_outcome
+increased, PR, PR:000004191, androgen receptor, GO, GO:0004882, androgen receptor activity, 25, Agonism; Androgen receptor
+, GO, GO:0004882, androgen receptor activity, , , , 25_129, 
+decreased, CHEBI, CHEBI:81568, Luteinizing hormone, , , , 129, Reduction; Gonadotropins; circulating concentrations
+, GO, GO:0004882, androgen receptor activity, , , , 25_129, 
+decreased, CHEBI, CHEBI:81569, Follicle stimulating hormone, , , , 129, Reduction; Gonadotropins; circulating concentrations
+, GO, GO:0004882, androgen receptor activity, GO, GO:0061370, testosterone biosynthetic process, 129_274, 
+decreased, CHEBI, CHEBI:17347, testosterone, GO, GO:0061370, testosterone biosynthetic process, 274, Reduction; Testosterone synthesis by ovarian theca cells
+, GO, GO:0004882, androgen receptor activity, GO, GO:0006703, estrogen biosynthetic process, 274_3, 
+decreased, CHEBI, CHEBI:16469, 17beta-estradiol, GO, GO:0006703, estrogen biosynthetic process, 3, Reduction; 17beta-estradiol synthesis by ovarian granulosa cells
+, GO, GO:0004882, androgen receptor activity, , , , 3_219, 
+decreased, CHEBI, CHEBI:16469, 17beta-estradiol, , , , 219, Reduction; Plasma 17beta-estradiol concentrations
+, GO, GO:0004882, androgen receptor activity, GO, GO:0010467, gene expression, 219_285, 
+decreased, MESH, D014819, vitellogenins, GO, GO:0010467, gene expression, 285, Reduction; Vitellogenin synthesis in liver
+, GO, GO:0004882, androgen receptor activity, GO, GO:0009306, protein secretion, 219_285, 
+decreased, MESH, D014819, vitellogenins, GO, GO:0009306, protein secretion, 285, Reduction; Vitellogenin synthesis in liver
+, GO, GO:0004882, androgen receptor activity, , , , 285_221, 
+decreased, MESH, D014819, vitellogenins, , , , 221, Reduction; Plasma vitellogenin concentrations
+, GO, GO:0004882, androgen receptor activity, GO, GO:0006898, receptor-mediated endocytosis, 221_309, 
+decreased, MESH, D014819, vitellogenins, GO, GO:0006898, receptor-mediated endocytosis, 309, Reduction; Vitellogenin accumulation into oocytes and oocyte growth/development
+, GO, GO:0004882, androgen receptor activity, GO, GO:0001555, oocyte growth, 221_309, 
+decreased, , , , GO, GO:0001555, oocyte growth, 309, Reduction; Vitellogenin accumulation into oocytes and oocyte growth/development
+, GO, GO:0004882, androgen receptor activity, GO, GO:0048599, oocyte development, 221_309, 
+decreased, , , , GO, GO:0048599, oocyte development, 309, Reduction; Vitellogenin accumulation into oocytes and oocyte growth/development
+, GO, GO:0004882, androgen receptor activity, VT, VT:1000294, egg quantity, 309_78, 
+decreased, , , , VT, VT:1000294, egg quantity, 78, Reduction; Cumulative fecundity and spawning
+, GO, GO:0004882, androgen receptor activity, PCO, PCO:0000008, population growth rate, 78_360, 
+decreased, PCO, PCO:0000001, population of organisms, PCO, PCO:0000008, population growth rate, 360, Decrease; Population growth rate
+increased, PR, PR:000004191, androgen receptor, GO, GO:0004882, androgen receptor activity, 25, Agonism; Androgen receptor
+, GO, GO:0004882, androgen receptor activity, GO, GO:0061370, testosterone biosynthetic process, 25_274, 
+decreased, CHEBI, CHEBI:17347, testosterone, GO, GO:0061370, testosterone biosynthetic process, 274, Reduction; Testosterone synthesis by ovarian theca cells
+increased, PR, PR:000004191, androgen receptor, GO, GO:0004882, androgen receptor activity, 25, Agonism; Androgen receptor
+, GO, GO:0004882, androgen receptor activity, GO, GO:0006703, estrogen biosynthetic process, 25_3, 
+decreased, CHEBI, CHEBI:16469, 17beta-estradiol, GO, GO:0006703, estrogen biosynthetic process, 3, Reduction; 17beta-estradiol synthesis by ovarian granulosa cells
+increased, PR, PR:000004191, androgen receptor, GO, GO:0004882, androgen receptor activity, 25, Agonism; Androgen receptor
+, GO, GO:0004882, androgen receptor activity, GO, GO:0010467, gene expression, 25_285, 
+decreased, MESH, D014819, vitellogenins, GO, GO:0010467, gene expression, 285, Reduction; Vitellogenin synthesis in liver
+, GO, GO:0004882, androgen receptor activity, GO, GO:0009306, protein secretion, 25_285, 
+decreased, MESH, D014819, vitellogenins, GO, GO:0009306, protein secretion, 285, Reduction; Vitellogenin synthesis in liver
+decreased, CHEBI, CHEBI:16469, 17beta-estradiol, , , , 219, Reduction; Plasma 17beta-estradiol concentrations
+, , , , , , , 219_221, 
+decreased, MESH, D014819, vitellogenins, , , , 221, Reduction; Plasma vitellogenin concentrations
