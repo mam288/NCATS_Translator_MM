@@ -4,6 +4,7 @@ import numpy as np
 import traceback
 import os
 import datetime as dt
+from urllib.parse import quote
 
 ######### Functions
 
@@ -94,7 +95,8 @@ def process_term(input_id, name, source):
         IRI_base = "purl.obolibrary.org/obo/"
     else:
         IRI_base = "id.nlm.nih.gov/mesh/"
-    name = re.sub(r" ", "_", name)
+    # name = re.sub(r" ", "_", name)
+    name = quote(name)
     class_statement = f'''###  http://{IRI_base}{input_id_str}\n\t<http://{IRI_base}{input_id_str}> rdf:type owl:Class .\n\n'''
     individuals_statement = f'''###  http://www.co-ode.org/ontologies/ont.owl#{name}\n<http://www.co-ode.org/ontologies/ont.owl#{name}> rdf:type owl:NamedIndividual ,\n\t<http://{IRI_base}{input_id_str}>'''
     return (class_statement, individuals_statement)
@@ -121,7 +123,9 @@ def get_relationship_statement(action1, term1, source1, ECtype1, action2, term2,
     # rel_id = "RO_0000057"
     if action1 != "" and not pd.isna(term2):
         # term2 = re.sub(r"\s", "_", term2)
-        term2 = re.sub(r"\s", "_", term2)
+        # term2 = re.sub(r"\s", "_", term2)
+        term2 = quote(term2)
+        term2 = re.sub(r"\/", "%2F", term2)
         rel_id_str = get_relationship(action1, term1, source1, ECtype1, action2, term2, source2, ECtype2)
         if pd.isna(rel_id_str):
             return (f"\t<http://purl.obolibrary.org/obo/RO_0002410> :{term2}\n\n")
@@ -340,7 +344,7 @@ def create_ttl_dicts(AOP_EC_filtered):
 
 
 def write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, individuals, relationships,
-              object_statements, IRI):
+              object_statements, IRI, title, status):
     '''
     Write ttl file using statements from the dictionaries created by create_ttl_dicts().
     :param outfile( (str): filt to write to
@@ -359,16 +363,16 @@ def write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, individuals, r
     missing_components = []
     # write predetermined header
     header = \
-        f'''@prefix : <http://www.semanticweb.org/mmandal/ontologies/2022/4/untitled-ontology-76#> .
-        @prefix owl: <http://www.w3.org/2002/07/owl#> .
-        @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-        @prefix xml: <http://www.w3.org/XML/1998/namespace> .
-        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-        @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-        @prefix : <http://www.co-ode.org/ontologies/ont.owl#> .
-        @base <http://www.w3.org/2002/07/owl#> .
+    f'''@prefix : <http://www.semanticweb.org/mmandal/ontologies/2022/4/untitled-ontology-76#> .
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    @prefix xml: <http://www.w3.org/XML/1998/namespace> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix : <http://www.co-ode.org/ontologies/ont.owl#> .
+    @base <http://www.w3.org/2002/07/owl#> .
 
-        {IRI}
+    {IRI}\n{title}\n{status}
         '''
     with open(outfile, "w+") as f:
         f.write(header)
@@ -394,11 +398,33 @@ def write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, individuals, r
     with open(outfile, "a") as f:
         for KE_id in KE_order:
             # print(KE_id)
+            try:
+                EC_dict[KE_id]
+            except:
+                error_c += 1
+                missing_components.append(KE_id)
+                EC_dict[KE_id] = []
+                # with open(log, 'a') as logf:
+                #     logf.write(f"Error {error_c} for AOP {AOP_num}: KE {KE_id} (from KE_order) is not in the EC_dict\n")
+                # f.close()
+                # print("error", KE_id)
+                # continue
             for KE in EC_dict[KE_id]:
-                # print(258, EC_dict[KE_id])
+                if KE_id in KE_order_dict.keys():
+                    next_KE_id = KE_order_dict[KE_id]
+                    try:
+                        next_KEs = EC_dict[next_KE_id]
+
+                    except:
+                        error_c += 1
+                        missing_components.append(next_KE_id)
+                        next_KEs = []
+                        # continue
+                else:
+                    next_KEs = []
+
                 if KE["Object ID"] is not np.nan:  # if there is an object, write an instance of that object
                     f.write(individuals[KE['Object ID']])
-                    # print(KE['Object ID'], 261, instances[KE['Object ID']])
 
                 if KE["Object ID"] is not np.nan and KE[
                     "Process/Phenotype ID"] is not np.nan:  # if there are both and object and process, write the relationshp
@@ -407,12 +433,11 @@ def write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, individuals, r
 
                 if KE["Process/Phenotype ID"] is not np.nan:  # if there is a process, write an instance of that process
                     f.write(individuals[KE['Process/Phenotype ID']])
-                    # print(271, individuals[KE['Process/Phenotype ID']])
 
-                if KE_id in KE_order_dict.keys():  # if there is a next KE in the order_dict
-                    next_KEs = EC_dict[KE_order_dict[KE_id]]
-                    for next_KE in next_KEs:  # go through the next KEs
-                        # print(276, KE["Object ID"])
+                # if KE_id in KE_order_dict.keys():  # if there is a next KE in the order_dict
+                #     next_KEs = EC_dict[KE_order_dict[KE_id]]
+                for next_KE in next_KEs:  # go through the next KEs
+                    try:
                         if KE["Process/Phenotype ID"] is not np.nan and next_KE["Process/Phenotype ID"] is not np.nan:
                             # print(" ;\n" + relationships[KE["Process/Phenotype ID"], next_KE["Process/Phenotype ID"]])
                             f.write(" ;\n" + relationships[KE["Process/Phenotype ID"], next_KE["Process/Phenotype ID"]])
@@ -422,6 +447,8 @@ def write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, individuals, r
                             f.write(" ;\n" + relationships[KE["Object ID"], next_KE["Process/Phenotype ID"]])
                         elif KE["Process/Phenotype ID"] is np.nan and next_KE["Process/Phenotype ID"] is np.nan:
                             f.write(" ;\n" + relationships[KE["Object ID"], next_KE["Object ID"]])
+                    except:
+                        continue
                 f.write(" .\n\n")
 
     # Write predetermined object header
@@ -444,6 +471,7 @@ def write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, individuals, r
         aop_summary_txt = f"{AOP_num}: complete\n"
     with open(log, 'a') as logf:
         logf.write(aop_summary_txt)
+    print(error_c)
     return error_c
 
 
@@ -451,18 +479,20 @@ AOP_EC_table, AOP_KE_table, AOP_KER_table = import_tables()
 
 AOP_nums = list(set(AOP_EC_table["AOP"]))
 # AOP_nums = [100]
+# AOP_nums = [202]
 # AOP_nums = [23]
+# AOP_nums = [102]
 # AOP_nums = [429, 411, 412]
 c_completed = []
 c_missing = []
-log = f"output/062023/log.txt"
+log = f"output/070323/log.txt"
 open(log, "w+").close()
 
 # Loop through the AOPs in AOP_nums and try to write a ttl file for each AOP. Keep a list of
 #   successful and failed AOPs, Print the error message when an AOP fails.
 for AOP_num in AOP_nums:
     # print(f"AOP {AOP_num}")
-    outfile = f"output/062023/aop_{AOP_num}_model.ttl"
+    outfile = f"output/070323/aop_{AOP_num}_model.ttl"
 
     try:
         # download DFs and create dicts
@@ -471,9 +501,12 @@ for AOP_num in AOP_nums:
         KE_pairs, KE_order_dict, KE_order = create_ke_dicts(AOP_num, AOP_KER_table)
         classes, instances, relationships, object_statements = create_ttl_dicts(AOP_EC_filtered)
         # Write ttl file
+        AO = AOP_KE_table["Adverse Outcome"][AOP_num]
         IRI = f"<https://noctua.apps.renci.org/model/AOP_{AOP_num}> a owl:Ontology ."
+        title = f'<https://noctua.apps.renci.org/model/AOP_10> <http://purl.org/dc/elements/1.1/title> "{AO}"^^xsd:string .'
+        status = f'<https://noctua.apps.renci.org/model/{AOP_num}> <http://geneontology.org/lego/modelstate> "review"^^xsd:string .'
         error_c = write_ttl(outfile, EC_dict, KE_order, KE_order_dict, classes, instances, relationships,
-                            object_statements, IRI)
+                            object_statements, IRI, title, status)
 
 
     except Exception as e:
